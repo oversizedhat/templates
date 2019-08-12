@@ -1,5 +1,5 @@
 AWSTemplateFormatVersion: "2010-09-09"
-Description: "Lambda function with API Gateway"
+Description: "Lambda function with API Gateway (GET,POST)"
 
 Parameters:
   apiGatewayStageName:
@@ -32,7 +32,7 @@ Resources:
       Name: !Ref "apiGatewayName"
       Description: !Ref "apiGatewayDesc"
 
-  apiGatewayRootMethod:
+  apiGatewayPostMethod:
     Type: "AWS::ApiGateway::Method"
     Properties:
       AuthorizationType: "NONE"
@@ -46,10 +46,25 @@ Resources:
       ResourceId: !GetAtt "apiGateway.RootResourceId"
       RestApiId: !Ref "apiGateway"
 
+  apiGatewayGetMethod:
+    Type: "AWS::ApiGateway::Method"
+    Properties:
+      AuthorizationType: "NONE"
+      HttpMethod: "GET"
+      Integration:
+        IntegrationHttpMethod: "POST"
+        Type: "AWS_PROXY"
+        Uri: !Sub
+          - "arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${lambdaArn}/invocations"
+          - lambdaArn: !GetAtt "lambdaFunction.Arn"
+      ResourceId: !GetAtt "apiGateway.RootResourceId"
+      RestApiId: !Ref "apiGateway"
+
   apiGatewayDeployment:
     Type: "AWS::ApiGateway::Deployment"
     DependsOn:
-      - "apiGatewayRootMethod"
+      - "apiGatewayPostMethod"
+      - "apiGatewayGetMethod"
     Properties:
       RestApiId: !Ref "apiGateway"
       StageName: !Ref "apiGatewayStageName"
@@ -86,7 +101,7 @@ Resources:
       Action: "lambda:InvokeFunction"
       FunctionName: !GetAtt "lambdaFunction.Arn"
       Principal: "apigateway.amazonaws.com"
-      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${apiGateway}/*/POST/"
+      SourceArn: !Sub "arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${apiGateway}/*/*/"
 
   lambdaIAMRole:
     Type: "AWS::IAM::Role"
